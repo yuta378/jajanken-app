@@ -1,19 +1,47 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>じゃんけんアプリ</title>
-    <link rel="stylesheet" href="style.css">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>じゃんけんアプリ</title>
+	<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>じゃんけんアプリ</h1>
-    <div id="app">
-        <button id="rock">グー</button>
-        <button id="scissors">チョキ</button>
-        <button id="paper">パー</button>
-        <p id="result">結果がここに表示されます</p>
-    </div>
-    <script src="script.js"></script>
+	<div class="background-glow"></div>
+	<div class="stage-light"></div>
+	<h1>じゃんけんバトル</h1>
+	<p class="subtitle">テレビエンディング風 3D じゃんけんショー</p>
+	<div id="app">
+		<div class="arena">
+			<div class="hand-card" id="playerHand">
+				<div class="card-label">あなた</div>
+				<div class="fighter player" aria-hidden="true">
+					<span class="head"></span>
+					<span class="body"></span>
+					<span class="arm"></span>
+					<span class="hand-shape" id="playerShape">?</span>
+				</div>
+				<div class="choice-text" id="playerChoiceText">?</div>
+			</div>
+			<div class="vs">VS</div>
+			<div class="hand-card" id="computerHand">
+				<div class="card-label">コンピュータ</div>
+				<div class="fighter computer" aria-hidden="true">
+					<span class="head"></span>
+					<span class="body"></span>
+					<span class="arm"></span>
+					<span class="hand-shape" id="computerShape">?</span>
+				</div>
+				<div class="choice-text" id="computerChoiceText">?</div>
+			</div>
+		</div>
+		<div class="controls">
+			<button id="rock" class="choice-btn rock-btn" aria-label="グー">✊ グー</button>
+			<button id="scissors" class="choice-btn scissors-btn" aria-label="チョキ">✌️ チョキ</button>
+			<button id="paper" class="choice-btn paper-btn" aria-label="パー">🖐️ パー</button>
+		</div>
+		<p id="result" aria-live="polite">手を選んでバトル開始！</p>
+	</div>
+	<script src="script.js"></script>
 </body>
 </html>
