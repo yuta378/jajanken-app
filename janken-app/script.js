@@ -9,6 +9,8 @@ const cancelMatchButton = document.getElementById('cancelMatchBtn');
 const matchStatus = document.getElementById('matchStatus');
 const playerNameInput = document.getElementById('playerNameInput');
 const registerButton = document.getElementById('registerBtn');
+const loginUserSelect = document.getElementById('loginUserSelect');
+const loginButton = document.getElementById('loginBtn');
 const profileStatus = document.getElementById('profileStatus');
 const pointStatus = document.getElementById('pointStatus');
 const roomIdInput = document.getElementById('roomIdInput');
@@ -42,8 +44,8 @@ const firebaseConfig = {
 
 const needsFirebaseSetup = Object.values(firebaseConfig).some((value) => value.startsWith('YOUR_'));
 
-const localPlayerId = getOrCreatePlayerId();
-let localPlayerName = getSavedPlayerName();
+let currentPlayerId = getOrCreatePlayerId();
+let currentPlayerName = getSavedPlayerName();
 let db = null;
 let roomRef = null;
 let currentRoomId = '';
@@ -54,7 +56,10 @@ let matchmakingActive = false;
 let inviteListener = null;
 let waitingListener = null;
 let claimInProgress = false;
-let profileListenerAttached = false;
+let profileRef = null;
+let profileValueListener = null;
+let usersRef = null;
+let usersListListener = null;
 
 rockButton.addEventListener('click', () => playJanken('グー'));
 scissorsButton.addEventListener('click', () => playJanken('チョキ'));
@@ -65,6 +70,7 @@ leaveRoomButton.addEventListener('click', leaveRoom);
 matchmakingButton.addEventListener('click', startMatchmaking);
 cancelMatchButton.addEventListener('click', cancelMatchmaking);
 registerButton.addEventListener('click', registerPlayerName);
+loginButton.addEventListener('click', loginSelectedUser);
 
 boot();
 
@@ -84,9 +90,9 @@ function boot() {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
 
-    if (localPlayerName) {
-        playerNameInput.value = localPlayerName;
-        syncLocalProfile();
+    if (currentPlayerName) {
+        playerNameInput.value = currentPlayerName;
+        syncCurrentProfile();
     } else {
         profileStatus.textContent = 'ユーザー名を登録してください。';
         createRoomButton.disabled = true;
@@ -94,7 +100,8 @@ function boot() {
         matchmakingButton.disabled = true;
     }
 
-    attachLocalProfileListener();
+    attachUsersListListener();
+    attachCurrentProfileListener();
 }
 
 function playJanken(playerChoice) {
@@ -151,7 +158,7 @@ function createRoom() {
     const newRef = db.ref(`rooms/${newRoomId}`);
     const payload = {
         createdAt: firebase.database.ServerValue.TIMESTAMP,
-        host: { id: localPlayerId, name: localPlayerName, choice: null },
+        host: { id: currentPlayerId, name: currentPlayerName, choice: null },
         guest: { id: null, choice: null }
     };
 
@@ -192,12 +199,12 @@ function joinRoom() {
             return;
         }
 
-        if (room.guest && room.guest.id && room.guest.id !== localPlayerId) {
+        if (room.guest && room.guest.id && room.guest.id !== currentPlayerId) {
             roomStatus.textContent = 'このルームは満員です。';
             return;
         }
 
-        targetRef.child('guest').set({ id: localPlayerId, name: localPlayerName, choice: null }).then(() => {
+        targetRef.child('guest').set({ id: currentPlayerId, name: currentPlayerName, choice: null }).then(() => {
             attachRoom(targetRef, joinId, 'guest');
             targetRef.child('guest').onDisconnect().remove();
             roomStatus.textContent = `ルーム参加: ${joinId}`;
@@ -480,14 +487,14 @@ function addToWaitingQueue() {
         return;
     }
 
-    const waitRef = db.ref(`matchmaking/waiting/${localPlayerId}`);
+    const waitRef = db.ref(`matchmaking/waiting/${currentPlayerId}`);
     waitRef.set({
         timestamp: firebase.database.ServerValue.TIMESTAMP,
-        name: localPlayerName
+        name: currentPlayerName
     });
     waitRef.onDisconnect().remove();
 
-    const inviteRef = db.ref(`matchmaking/invitations/${localPlayerId}`);
+    const inviteRef = db.ref(`matchmaking/invitations/${currentPlayerId}`);
     inviteListener = (snapshot) => {
         const invite = snapshot.val();
         if (!invite || !invite.roomId) {
@@ -531,8 +538,8 @@ function cleanupMatchmaking() {
         return;
     }
     if (db) {
-        db.ref(`matchmaking/waiting/${localPlayerId}`).remove();
-        const inviteRef = db.ref(`matchmaking/invitations/${localPlayerId}`);
+        db.ref(`matchmaking/waiting/${currentPlayerId}`).remove();
+        const inviteRef = db.ref(`matchmaking/invitations/${currentPlayerId}`);
         if (inviteListener) {
             inviteRef.off('value', inviteListener);
             inviteRef.remove();
@@ -549,7 +556,7 @@ function cleanupMatchmaking() {
 
 function endMatchmaking() {
     if (db && inviteListener) {
-        db.ref(`matchmaking/invitations/${localPlayerId}`).off('value', inviteListener);
+        db.ref(`matchmaking/invitations/${currentPlayerId}`).off('value', inviteListener);
         inviteListener = null;
     }
 
@@ -570,7 +577,7 @@ function tryClaimRandomOpponent(waiting) {
         return;
     }
 
-    const opponentIds = Object.keys(waiting).filter((id) => id !== localPlayerId);
+    const opponentIds = Object.keys(waiting).filter((id) => id !== currentPlayerId);
     if (opponentIds.length === 0) {
         return;
     }
@@ -601,11 +608,11 @@ function tryClaimRandomOpponent(waiting) {
         const newRoomRef = db.ref(`rooms/${newRoomId}`);
         newRoomRef.set({
             createdAt: firebase.database.ServerValue.TIMESTAMP,
-            host: { id: localPlayerId, name: localPlayerName, choice: null },
+            host: { id: currentPlayerId, name: currentPlayerName, choice: null },
             guest: { id: opponentId, name: opponentName, choice: null }
         }).then(() => {
             db.ref(`matchmaking/invitations/${opponentId}`).set({ roomId: newRoomId });
-            db.ref(`matchmaking/waiting/${localPlayerId}`).remove();
+            db.ref(`matchmaking/waiting/${currentPlayerId}`).remove();
             newRoomRef.onDisconnect().remove();
 
             isMatchedGame = true;
@@ -635,10 +642,10 @@ function registerPlayerName() {
         return;
     }
 
-    localPlayerName = nextName;
+    currentPlayerName = nextName;
     localStorage.setItem('jankenPlayerName', nextName);
 
-    syncLocalProfile().then(() => {
+    syncCurrentProfile().then(() => {
         profileStatus.textContent = `ユーザー登録完了: ${nextName}`;
         updateActionAvailability();
     }).catch((error) => {
@@ -646,14 +653,14 @@ function registerPlayerName() {
     });
 }
 
-function syncLocalProfile() {
-    if (!db || !localPlayerName) {
+function syncCurrentProfile() {
+    if (!db || !currentPlayerName) {
         return Promise.resolve();
     }
 
-    const profileRef = db.ref(`players/${localPlayerId}`);
-    return profileRef.transaction((current) => ({
-        displayName: localPlayerName,
+    const currentProfileRef = db.ref(`players/${currentPlayerId}`);
+    return currentProfileRef.transaction((current) => ({
+        displayName: currentPlayerName,
         points: current && typeof current.points === 'number' ? current.points : 0,
         wins: current && typeof current.wins === 'number' ? current.wins : 0,
         draws: current && typeof current.draws === 'number' ? current.draws : 0,
@@ -662,27 +669,31 @@ function syncLocalProfile() {
     }));
 }
 
-function attachLocalProfileListener() {
-    if (!db || profileListenerAttached) {
+function attachCurrentProfileListener() {
+    if (!db) {
         return;
     }
 
-    db.ref(`players/${localPlayerId}`).on('value', (snapshot) => {
+    if (profileRef && profileValueListener) {
+        profileRef.off('value', profileValueListener);
+    }
+
+    profileRef = db.ref(`players/${currentPlayerId}`);
+    profileValueListener = (snapshot) => {
         const profile = snapshot.val();
         const points = profile && typeof profile.points === 'number' ? profile.points : 0;
         pointStatus.textContent = `現在ポイント: ${points}`;
 
         if (profile && profile.displayName) {
-            localPlayerName = profile.displayName;
+            currentPlayerName = profile.displayName;
             playerNameInput.value = profile.displayName;
             if (!profileStatus.textContent.startsWith('登録に失敗')) {
-                profileStatus.textContent = `ユーザー: ${profile.displayName}`;
+                profileStatus.textContent = `ログイン中: ${profile.displayName}`;
             }
             updateActionAvailability();
         }
-    });
-
-    profileListenerAttached = true;
+    };
+    profileRef.on('value', profileValueListener);
 }
 
 function updateActionAvailability() {
@@ -693,11 +704,97 @@ function updateActionAvailability() {
 }
 
 function isRegistered() {
-    return Boolean(localPlayerName && localPlayerName.trim());
+    return Boolean(currentPlayerName && currentPlayerName.trim());
 }
 
 function getSavedPlayerName() {
     return localStorage.getItem('jankenPlayerName') || '';
+}
+
+function attachUsersListListener() {
+    if (!db || usersListListener) {
+        return;
+    }
+
+    usersRef = db.ref('players');
+    usersListListener = (snapshot) => {
+        const players = snapshot.val() || {};
+        renderUserSelect(players);
+    };
+    usersRef.on('value', usersListListener);
+}
+
+function renderUserSelect(players) {
+    const entries = Object.entries(players)
+        .map(([id, value]) => ({
+            id,
+            name: value && value.displayName ? value.displayName : 'プレイヤー',
+            points: value && typeof value.points === 'number' ? value.points : 0
+        }))
+        .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, 'ja'));
+
+    loginUserSelect.innerHTML = '';
+
+    if (entries.length === 0) {
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = '登録済みユーザーがいません';
+        loginUserSelect.appendChild(emptyOption);
+        loginButton.disabled = true;
+        return;
+    }
+
+    entries.forEach((entry) => {
+        const option = document.createElement('option');
+        option.value = entry.id;
+        option.textContent = `${entry.name} (Pt ${entry.points})`;
+        if (entry.id === currentPlayerId) {
+            option.selected = true;
+        }
+        loginUserSelect.appendChild(option);
+    });
+
+    loginButton.disabled = false;
+}
+
+function loginSelectedUser() {
+    if (!db) {
+        return;
+    }
+
+    const selectedId = loginUserSelect.value;
+    if (!selectedId) {
+        profileStatus.textContent = 'ログインするユーザーを選択してください。';
+        return;
+    }
+
+    if (selectedId === currentPlayerId) {
+        profileStatus.textContent = `すでに ${currentPlayerName || 'このユーザー'} でログイン中です。`;
+        return;
+    }
+
+    leaveRoom();
+
+    db.ref(`players/${selectedId}`).once('value').then((snapshot) => {
+        const profile = snapshot.val();
+        if (!profile || !profile.displayName) {
+            profileStatus.textContent = '選択したユーザーが見つかりません。';
+            return;
+        }
+
+        currentPlayerId = selectedId;
+        currentPlayerName = profile.displayName;
+        localStorage.setItem('jankenPlayerId', currentPlayerId);
+        localStorage.setItem('jankenPlayerName', currentPlayerName);
+
+        playerNameInput.value = currentPlayerName;
+        profileStatus.textContent = `ログインしました: ${currentPlayerName}`;
+
+        attachCurrentProfileListener();
+        updateActionAvailability();
+    }).catch((error) => {
+        profileStatus.textContent = `ログインに失敗しました: ${formatDbError(error)}`;
+    });
 }
 
 function applyRoundPoints(room) {
