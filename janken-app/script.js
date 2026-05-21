@@ -11,6 +11,7 @@ const playerNameInput = document.getElementById('playerNameInput');
 const registerButton = document.getElementById('registerBtn');
 const loginUserSelect = document.getElementById('loginUserSelect');
 const loginButton = document.getElementById('loginBtn');
+const deleteUserBtn = document.getElementById('deleteUserBtn');
 const profileStatus = document.getElementById('profileStatus');
 const pointStatus = document.getElementById('pointStatus');
 const roomIdInput = document.getElementById('roomIdInput');
@@ -71,6 +72,7 @@ matchmakingButton.addEventListener('click', startMatchmaking);
 cancelMatchButton.addEventListener('click', cancelMatchmaking);
 registerButton.addEventListener('click', registerPlayerName);
 loginButton.addEventListener('click', loginSelectedUser);
+deleteUserBtn.addEventListener('click', deleteCurrentUser);
 
 boot();
 
@@ -690,6 +692,7 @@ function attachCurrentProfileListener() {
             if (!profileStatus.textContent.startsWith('登録に失敗')) {
                 profileStatus.textContent = `ログイン中: ${profile.displayName}`;
             }
+            deleteUserBtn.disabled = false;
             updateActionAvailability();
         }
     };
@@ -794,6 +797,36 @@ function loginSelectedUser() {
         updateActionAvailability();
     }).catch((error) => {
         profileStatus.textContent = `ログインに失敗しました: ${formatDbError(error)}`;
+    });
+}
+
+function deleteCurrentUser() {
+    if (!db || !currentPlayerId) {
+        return;
+    }
+
+    const confirmDelete = confirm(`ユーザー "${currentPlayerName}" を削除しますか？\nこのアクションは元に戻せません。`);
+    if (!confirmDelete) {
+        return;
+    }
+
+    leaveRoom();
+
+    db.ref(`players/${currentPlayerId}`).remove().then(() => {
+        currentPlayerId = getOrCreatePlayerId();
+        currentPlayerName = '';
+        localStorage.removeItem('jankenPlayerName');
+        localStorage.setItem('jankenPlayerId', currentPlayerId);
+
+        playerNameInput.value = '';
+        profileStatus.textContent = 'ユーザーを削除しました。新しいユーザー名を登録してください。';
+        pointStatus.textContent = '現在ポイント: 0';
+        deleteUserBtn.disabled = true;
+
+        attachCurrentProfileListener();
+        updateActionAvailability();
+    }).catch((error) => {
+        profileStatus.textContent = `削除に失敗しました: ${formatDbError(error)}`;
     });
 }
 
