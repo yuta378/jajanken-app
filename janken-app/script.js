@@ -15,6 +15,7 @@ const registerButton = document.getElementById('registerBtn');
 const loginUserSelect = document.getElementById('loginUserSelect');
 const loginButton = document.getElementById('loginBtn');
 const deleteUserBtn = document.getElementById('deleteUserBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 const rankingBtn = document.getElementById('rankingBtn');
 const rankingModal = document.getElementById('rankingModal');
 const closeRankingBtn = document.getElementById('closeRankingBtn');
@@ -81,6 +82,7 @@ cancelMatchButton.addEventListener('click', cancelMatchmaking);
 registerButton.addEventListener('click', registerPlayerName);
 loginButton.addEventListener('click', loginSelectedUser);
 deleteUserBtn.addEventListener('click', deleteCurrentUser);
+logoutBtn.addEventListener('click', logoutCurrentUser);
 rankingBtn.addEventListener('click', showRanking);
 closeRankingBtn.addEventListener('click', closeRanking);
 rankingModal.addEventListener('click', (e) => {
@@ -104,6 +106,7 @@ function boot() {
         joinRoomButton.disabled = true;
         matchmakingButton.disabled = true;
         registerButton.disabled = true;
+        logoutBtn.disabled = true;
         return;
     }
 
@@ -716,7 +719,6 @@ function attachCurrentProfileListener() {
             if (role && currentRoomId) {
                 playerLabel.textContent = profile.displayName;
             }
-            deleteUserBtn.disabled = false;
             updateActionAvailability();
         }
     };
@@ -728,6 +730,8 @@ function updateActionAvailability() {
     createRoomButton.disabled = !canPlay || matchmakingActive;
     joinRoomButton.disabled = !canPlay || matchmakingActive;
     matchmakingButton.disabled = !canPlay || matchmakingActive;
+    deleteUserBtn.disabled = !canPlay;
+    logoutBtn.disabled = !canPlay;
 }
 
 function isRegistered() {
@@ -845,13 +849,34 @@ function deleteCurrentUser() {
         playerNameInput.value = '';
         profileStatus.textContent = 'ユーザーを削除しました。新しいユーザー名を登録してください。';
         pointStatus.textContent = '現在ポイント: 0';
-        deleteUserBtn.disabled = true;
 
         attachCurrentProfileListener();
         updateActionAvailability();
     }).catch((error) => {
         profileStatus.textContent = `削除に失敗しました: ${formatDbError(error)}`;
     });
+}
+
+function logoutCurrentUser() {
+    if (!currentPlayerName) {
+        profileStatus.textContent = '現在ログインしていません。';
+        return;
+    }
+
+    leaveRoom();
+
+    localStorage.removeItem('jankenPlayerName');
+    localStorage.removeItem('jankenPlayerId');
+
+    currentPlayerId = getOrCreatePlayerId();
+    currentPlayerName = '';
+
+    playerNameInput.value = '';
+    pointStatus.textContent = '現在ポイント: 0';
+    profileStatus.textContent = 'ログアウトしました。ユーザーを選択してログインするか、新規登録してください。';
+
+    attachCurrentProfileListener();
+    updateActionAvailability();
 }
 
 function showRanking() {
