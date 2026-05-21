@@ -636,3 +636,58 @@ h1 {
         font-size: 1.16rem;
     }
 }
+
+/* Home Screen Styles */
+.home-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.home-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 60px;
+}
+
+.home-title {
+    font-size: 4rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: #162544;
+    text-shadow: 0 8px 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(159, 185, 230, 0.3);
+    margin: 0;
+    animation: floatField 3s ease-in-out infinite;
+}
+
+.game-start-btn {
+    padding: 18px 60px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
+    transition: all 0.3s ease;
+    letter-spacing: 0.05em;
+}
+
+.game-start-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(37, 99, 235, 0.6);
+}
+
+.game-start-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+}
+
+.game-screen {
+    display: block;
+}
