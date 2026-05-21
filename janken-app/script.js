@@ -12,6 +12,10 @@ const registerButton = document.getElementById('registerBtn');
 const loginUserSelect = document.getElementById('loginUserSelect');
 const loginButton = document.getElementById('loginBtn');
 const deleteUserBtn = document.getElementById('deleteUserBtn');
+const rankingBtn = document.getElementById('rankingBtn');
+const rankingModal = document.getElementById('rankingModal');
+const closeRankingBtn = document.getElementById('closeRankingBtn');
+const rankingList = document.getElementById('rankingList');
 const profileStatus = document.getElementById('profileStatus');
 const pointStatus = document.getElementById('pointStatus');
 const roomIdInput = document.getElementById('roomIdInput');
@@ -73,6 +77,11 @@ cancelMatchButton.addEventListener('click', cancelMatchmaking);
 registerButton.addEventListener('click', registerPlayerName);
 loginButton.addEventListener('click', loginSelectedUser);
 deleteUserBtn.addEventListener('click', deleteCurrentUser);
+rankingBtn.addEventListener('click', showRanking);
+closeRankingBtn.addEventListener('click', closeRanking);
+rankingModal.addEventListener('click', (e) => {
+    if (e.target === rankingModal) closeRanking();
+});
 
 boot();
 
@@ -276,8 +285,11 @@ function onRoomChange(snapshot) {
     const myChoice = me ? me.choice : null;
     const opponentChoice = opponent ? opponent.choice : null;
 
-    playerLabel.textContent = role === 'host' ? 'あなた (ホスト)' : 'あなた (ゲスト)';
-    opponentLabel.textContent = opponentReady ? '対戦相手' : '対戦相手 (待機中)';
+    const myName = me && me.name ? me.name : (role === 'host' ? 'ホスト' : 'ゲスト');
+    const opponentName = opponent && opponent.name ? opponent.name : '対戦相手';
+
+    playerLabel.textContent = `${myName}`;
+    opponentLabel.textContent = opponentReady ? opponentName : `${opponentName} (待機中)`;
     roomStatus.textContent = isMatchedGame ? 'マッチング対戦中' : `ルーム: ${currentRoomId}`;
 
     updateArenaChoices(myChoice, opponentChoice, false);
@@ -692,6 +704,9 @@ function attachCurrentProfileListener() {
             if (!profileStatus.textContent.startsWith('登録に失敗')) {
                 profileStatus.textContent = `ログイン中: ${profile.displayName}`;
             }
+            if (role && currentRoomId) {
+                playerLabel.textContent = profile.displayName;
+            }
             deleteUserBtn.disabled = false;
             updateActionAvailability();
         }
@@ -828,6 +843,62 @@ function deleteCurrentUser() {
     }).catch((error) => {
         profileStatus.textContent = `削除に失敗しました: ${formatDbError(error)}`;
     });
+}
+
+function showRanking() {
+    if (!db) {
+        return;
+    }
+
+    rankingModal.style.display = 'flex';
+
+    db.ref('players').once('value', (snapshot) => {
+        const players = snapshot.val() || {};
+        const playerList = Object.entries(players)
+            .map(([id, data]) => ({
+                id,
+                name: data.displayName || 'Unknown',
+                points: data.points || 0,
+                wins: data.wins || 0,
+                draws: data.draws || 0,
+                losses: data.losses || 0
+            }))
+            .sort((a, b) => b.points - a.points);
+
+        rankingList.innerHTML = '';
+        playerList.forEach((player, index) => {
+            const rank = index + 1;
+            let medalEmoji = '';
+            let rankClass = '';
+
+            if (rank === 1) {
+                medalEmoji = '🥇';
+                rankClass = 'gold';
+            } else if (rank === 2) {
+                medalEmoji = '🥈';
+                rankClass = 'silver';
+            } else if (rank === 3) {
+                medalEmoji = '🥉';
+                rankClass = 'bronze';
+            }
+
+            const item = document.createElement('div');
+            item.className = 'ranking-item';
+            item.innerHTML = `
+                <span class="ranking-rank ${rankClass}">${medalEmoji || rank}</span>
+                <div class="ranking-info">
+                    <div class="ranking-name">${player.name}</div>
+                    <div class="ranking-stats">勝: ${player.wins} | 引: ${player.draws} | 負: ${player.losses}</div>
+                </div>
+                <div class="ranking-points">${player.points}pt</div>
+            `;
+            rankingList.appendChild(item);
+        });
+    });
+}
+
+function closeRanking() {
+    rankingModal.style.display = 'none';
 }
 
 function applyRoundPoints(room) {
