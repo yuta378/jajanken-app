@@ -52,6 +52,8 @@ let roundLockKey = '';
 let isMatchedGame = false;
 let matchmakingActive = false;
 let inviteListener = null;
+let waitingListener = null;
+let claimInProgress = false;
 let profileListenerAttached = false;
 
 rockButton.addEventListener('click', () => playJanken('グー'));
@@ -470,56 +472,7 @@ function startMatchmaking() {
     matchStatus.textContent = '対戦相手を探しています...';
     resultText.textContent = '対戦相手を探しています...';
 
-    db.ref('matchmaking/waiting').once('value').then((snapshot) => {
-        if (!matchmakingActive) {
-            return;
-        }
-
-        const waiting = snapshot.val();
-        let opponentId = null;
-
-        if (waiting) {
-            opponentId = Object.keys(waiting).find((id) => id !== localPlayerId) || null;
-        }
-
-        if (opponentId) {
-            const opponentWaitRef = db.ref(`matchmaking/waiting/${opponentId}`);
-            opponentWaitRef.transaction((current) => {
-                if (current === null) {
-                    return undefined;
-                }
-                return null;
-            }, (error, committed) => {
-                if (!matchmakingActive) {
-                    return;
-                }
-                if (!committed || error) {
-                    addToWaitingQueue();
-                    return;
-                }
-
-                const newRoomId = `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-                const newRoomRef = db.ref(`rooms/${newRoomId}`);
-                newRoomRef.set({
-                    createdAt: firebase.database.ServerValue.TIMESTAMP,
-                    host: { id: localPlayerId, name: localPlayerName, choice: null },
-                    guest: { id: opponentId, choice: null }
-                }).then(() => {
-                    db.ref(`matchmaking/invitations/${opponentId}`).set({ roomId: newRoomId });
-                    newRoomRef.onDisconnect().remove();
-                    isMatchedGame = true;
-                    endMatchmaking();
-                    matchStatus.textContent = 'マッチング完了！対戦開始！';
-                    attachRoom(newRoomRef, newRoomId, 'host');
-                });
-            });
-        } else {
-            addToWaitingQueue();
-        }
-    }).catch(() => {
-        matchStatus.textContent = 'マッチングに失敗しました。再試行してください。';
-        cleanupMatchmaking();
-    });
+    addToWaitingQueue();
 }
 
 function addToWaitingQueue() {
@@ -528,7 +481,10 @@ function addToWaitingQueue() {
     }
 
     const waitRef = db.ref(`matchmaking/waiting/${localPlayerId}`);
-    waitRef.set({ timestamp: firebase.database.ServerValue.TIMESTAMP });
+    waitRef.set({
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        name: localPlayerName
+    });
     waitRef.onDisconnect().remove();
 
     const inviteRef = db.ref(`matchmaking/invitations/${localPlayerId}`);
@@ -554,6 +510,12 @@ function addToWaitingQueue() {
         attachRoom(matchedRoomRef, invite.roomId, 'guest');
     };
     inviteRef.on('value', inviteListener);
+
+    const waitingRef = db.ref('matchmaking/waiting');
+    waitingListener = (snapshot) => {
+        tryClaimRandomOpponent(snapshot.val());
+    };
+    waitingRef.on('value', waitingListener);
 }
 
 function cancelMatchmaking() {
@@ -576,15 +538,85 @@ function cleanupMatchmaking() {
             inviteRef.remove();
             inviteListener = null;
         }
+
+        if (waitingListener) {
+            db.ref('matchmaking/waiting').off('value', waitingListener);
+            waitingListener = null;
+        }
     }
     endMatchmaking();
 }
 
 function endMatchmaking() {
+    if (db && inviteListener) {
+        db.ref(`matchmaking/invitations/${localPlayerId}`).off('value', inviteListener);
+        inviteListener = null;
+    }
+
+    if (db && waitingListener) {
+        db.ref('matchmaking/waiting').off('value', waitingListener);
+        waitingListener = null;
+    }
+
     matchmakingActive = false;
+    claimInProgress = false;
     cancelMatchButton.disabled = true;
     matchStatus.className = 'room-status';
     updateActionAvailability();
+}
+
+function tryClaimRandomOpponent(waiting) {
+    if (!matchmakingActive || !waiting || claimInProgress) {
+        return;
+    }
+
+    const opponentIds = Object.keys(waiting).filter((id) => id !== localPlayerId);
+    if (opponentIds.length === 0) {
+        return;
+    }
+
+    claimInProgress = true;
+    const randomIndex = Math.floor(Math.random() * opponentIds.length);
+    const opponentId = opponentIds[randomIndex];
+    const opponentName = waiting[opponentId] && waiting[opponentId].name ? waiting[opponentId].name : '対戦相手';
+
+    const opponentWaitRef = db.ref(`matchmaking/waiting/${opponentId}`);
+    opponentWaitRef.transaction((current) => {
+        if (current === null) {
+            return undefined;
+        }
+        return null;
+    }, (error, committed) => {
+        if (!matchmakingActive) {
+            claimInProgress = false;
+            return;
+        }
+
+        if (error || !committed) {
+            claimInProgress = false;
+            return;
+        }
+
+        const newRoomId = `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        const newRoomRef = db.ref(`rooms/${newRoomId}`);
+        newRoomRef.set({
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            host: { id: localPlayerId, name: localPlayerName, choice: null },
+            guest: { id: opponentId, name: opponentName, choice: null }
+        }).then(() => {
+            db.ref(`matchmaking/invitations/${opponentId}`).set({ roomId: newRoomId });
+            db.ref(`matchmaking/waiting/${localPlayerId}`).remove();
+            newRoomRef.onDisconnect().remove();
+
+            isMatchedGame = true;
+            endMatchmaking();
+            matchStatus.textContent = 'マッチング完了！対戦開始！';
+            attachRoom(newRoomRef, newRoomId, 'host');
+        }).catch(() => {
+            claimInProgress = false;
+            matchStatus.textContent = 'マッチング用ルーム作成に失敗しました。再試行してください。';
+        });
+    });
 }
 
 function registerPlayerName() {
