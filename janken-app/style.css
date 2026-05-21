@@ -147,6 +147,15 @@ h1 {
     opacity: 0.85;
 }
 
+.logout-btn {
+    margin-top: 8px;
+    background: linear-gradient(135deg, #6c7a94, #4b5a74);
+}
+
+.logout-btn:hover {
+    opacity: 0.85;
+}
+
 .ranking-btn {
     margin-top: 8px;
     background: linear-gradient(135deg, #ffd700, #ffed4e);
