@@ -1,6 +1,9 @@
 const rockButton = document.getElementById('rock');
 const scissorsButton = document.getElementById('scissors');
 const paperButton = document.getElementById('paper');
+const gameStartBtn = document.getElementById('gameStartBtn');
+const homeScreen = document.getElementById('homeScreen');
+const gameScreen = document.getElementById('gameScreen');
 const createRoomButton = document.getElementById('createRoomBtn');
 const joinRoomButton = document.getElementById('joinRoomBtn');
 const leaveRoomButton = document.getElementById('leaveRoomBtn');
@@ -69,6 +72,7 @@ let usersListListener = null;
 rockButton.addEventListener('click', () => playJanken('グー'));
 scissorsButton.addEventListener('click', () => playJanken('チョキ'));
 paperButton.addEventListener('click', () => playJanken('パー'));
+gameStartBtn.addEventListener('click', startGame);
 createRoomButton.addEventListener('click', createRoom);
 joinRoomButton.addEventListener('click', joinRoom);
 leaveRoomButton.addEventListener('click', leaveRoom);
@@ -82,6 +86,11 @@ closeRankingBtn.addEventListener('click', closeRanking);
 rankingModal.addEventListener('click', (e) => {
     if (e.target === rankingModal) closeRanking();
 });
+
+function startGame() {
+    homeScreen.style.display = 'none';
+    gameScreen.style.display = 'block';
+}
 
 boot();
 
