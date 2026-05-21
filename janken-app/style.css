@@ -147,6 +147,135 @@ h1 {
     opacity: 0.85;
 }
 
+.ranking-btn {
+    margin-top: 8px;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #333;
+    font-weight: bold;
+}
+
+.ranking-btn:hover {
+    opacity: 0.85;
+}
+
+.ranking-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.ranking-content {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 2px solid #ffd700;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(255, 215, 0, 0.2);
+}
+
+.ranking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ffd700;
+    padding-bottom: 12px;
+}
+
+.ranking-header h2 {
+    margin: 0;
+    color: #ffd700;
+    font-size: 24px;
+}
+
+.close-ranking-btn {
+    background: none;
+    border: none;
+    color: #ffd700;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-ranking-btn:hover {
+    opacity: 0.7;
+}
+
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: rgba(255, 215, 0, 0.1);
+    border-left: 4px solid #ffd700;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.ranking-rank {
+    font-weight: bold;
+    font-size: 18px;
+    color: #ffd700;
+    min-width: 40px;
+}
+
+.ranking-rank.gold {
+    color: #ffd700;
+}
+
+.ranking-rank.silver {
+    color: #c0c0c0;
+}
+
+.ranking-rank.bronze {
+    color: #cd7f32;
+}
+
+.ranking-info {
+    flex: 1;
+    margin-left: 12px;
+}
+
+.ranking-name {
+    font-weight: bold;
+    font-size: 16px;
+    color: #fff;
+}
+
+.ranking-stats {
+    font-size: 12px;
+    color: #aaa;
+    margin-top: 4px;
+}
+
+.ranking-points {
+    font-weight: bold;
+    font-size: 18px;
+    color: #ffd700;
+    min-width: 80px;
+    text-align: right;
+}
+
 .panel-divider {
     border: none;
     border-top: 1px solid rgba(159, 185, 230, 0.45);
