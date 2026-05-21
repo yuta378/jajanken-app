@@ -50,6 +50,25 @@ h1 {
     color: #2a436d;
 }
 
+.register-controls {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+#playerNameInput {
+    width: min(260px, 72vw);
+    padding: 9px 11px;
+    border-radius: 10px;
+    border: 1px solid #9cb8e6;
+    background: #ffffff;
+    font-size: 0.96rem;
+    font-weight: 600;
+    color: #1c355f;
+}
+
 .room-controls {
     margin-top: 8px;
     display: flex;
@@ -94,6 +113,10 @@ h1 {
     font-size: 0.9rem;
     font-weight: 700;
     color: #2f4d80;
+}
+
+#pointStatus {
+    color: #2b5ea8;
 }
 
 .panel-divider {
@@ -411,6 +434,11 @@ h1 {
 }
 
 @media (max-width: 640px) {
+    .register-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
     .room-controls {
         flex-direction: column;
         align-items: stretch;
@@ -422,6 +450,10 @@ h1 {
     }
 
     #roomIdInput {
+        width: 100%;
+    }
+
+    #playerNameInput {
         width: 100%;
     }
 
