@@ -7,6 +7,10 @@ const leaveRoomButton = document.getElementById('leaveRoomBtn');
 const matchmakingButton = document.getElementById('matchmakingBtn');
 const cancelMatchButton = document.getElementById('cancelMatchBtn');
 const matchStatus = document.getElementById('matchStatus');
+const playerNameInput = document.getElementById('playerNameInput');
+const registerButton = document.getElementById('registerBtn');
+const profileStatus = document.getElementById('profileStatus');
+const pointStatus = document.getElementById('pointStatus');
 const roomIdInput = document.getElementById('roomIdInput');
 const roomStatus = document.getElementById('roomStatus');
 const playerLabel = document.getElementById('playerLabel');
@@ -39,6 +43,7 @@ const firebaseConfig = {
 const needsFirebaseSetup = Object.values(firebaseConfig).some((value) => value.startsWith('YOUR_'));
 
 const localPlayerId = getOrCreatePlayerId();
+let localPlayerName = getSavedPlayerName();
 let db = null;
 let roomRef = null;
 let currentRoomId = '';
@@ -47,6 +52,7 @@ let roundLockKey = '';
 let isMatchedGame = false;
 let matchmakingActive = false;
 let inviteListener = null;
+let profileListenerAttached = false;
 
 rockButton.addEventListener('click', () => playJanken('グー'));
 scissorsButton.addEventListener('click', () => playJanken('チョキ'));
@@ -56,6 +62,7 @@ joinRoomButton.addEventListener('click', joinRoom);
 leaveRoomButton.addEventListener('click', leaveRoom);
 matchmakingButton.addEventListener('click', startMatchmaking);
 cancelMatchButton.addEventListener('click', cancelMatchmaking);
+registerButton.addEventListener('click', registerPlayerName);
 
 boot();
 
@@ -68,14 +75,32 @@ function boot() {
         createRoomButton.disabled = true;
         joinRoomButton.disabled = true;
         matchmakingButton.disabled = true;
+        registerButton.disabled = true;
         return;
     }
 
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
+
+    if (localPlayerName) {
+        playerNameInput.value = localPlayerName;
+        syncLocalProfile();
+    } else {
+        profileStatus.textContent = 'ユーザー名を登録してください。';
+        createRoomButton.disabled = true;
+        joinRoomButton.disabled = true;
+        matchmakingButton.disabled = true;
+    }
+
+    attachLocalProfileListener();
 }
 
 function playJanken(playerChoice) {
+    if (!isRegistered()) {
+        profileStatus.textContent = '先にユーザー名を登録してください。';
+        return;
+    }
+
     if (!roomRef || !role) {
         return;
     }
@@ -113,13 +138,18 @@ function createRoom() {
         return;
     }
 
+    if (!isRegistered()) {
+        profileStatus.textContent = '先にユーザー名を登録してください。';
+        return;
+    }
+
     leaveRoom();
 
     const newRoomId = generateRoomId();
     const newRef = db.ref(`rooms/${newRoomId}`);
     const payload = {
         createdAt: firebase.database.ServerValue.TIMESTAMP,
-        host: { id: localPlayerId, choice: null },
+        host: { id: localPlayerId, name: localPlayerName, choice: null },
         guest: { id: null, choice: null }
     };
 
@@ -136,6 +166,11 @@ function createRoom() {
 
 function joinRoom() {
     if (!db) {
+        return;
+    }
+
+    if (!isRegistered()) {
+        profileStatus.textContent = '先にユーザー名を登録してください。';
         return;
     }
 
@@ -160,7 +195,7 @@ function joinRoom() {
             return;
         }
 
-        targetRef.child('guest').set({ id: localPlayerId, choice: null }).then(() => {
+        targetRef.child('guest').set({ id: localPlayerId, name: localPlayerName, choice: null }).then(() => {
             attachRoom(targetRef, joinId, 'guest');
             targetRef.child('guest').onDisconnect().remove();
             roomStatus.textContent = `ルーム参加: ${joinId}`;
@@ -267,7 +302,7 @@ function onRoomChange(snapshot) {
     roundLockKey = newRoundKey;
 
     setButtonsDisabled(true);
-    startCountdown(me.choice, opponent.choice);
+    startCountdown(me.choice, opponent.choice, room);
 }
 
 function resetArena() {
@@ -300,7 +335,7 @@ function updateArenaChoices(myChoice, opponentChoice, revealed) {
     }
 }
 
-function startCountdown(myChoice, opponentChoice) {
+function startCountdown(myChoice, opponentChoice, room) {
     playerHand.classList.add('shaking');
     computerHand.classList.add('shaking');
     resultText.className = 'counting';
@@ -329,6 +364,7 @@ function startCountdown(myChoice, opponentChoice) {
         }
 
         if (role === 'host') {
+            applyRoundPoints(room);
             setTimeout(() => {
                 if (!roomRef) {
                     return;
@@ -418,6 +454,11 @@ function startMatchmaking() {
         return;
     }
 
+    if (!isRegistered()) {
+        profileStatus.textContent = '先にユーザー名を登録してください。';
+        return;
+    }
+
     leaveRoom();
 
     matchmakingActive = true;
@@ -461,7 +502,7 @@ function startMatchmaking() {
                 const newRoomRef = db.ref(`rooms/${newRoomId}`);
                 newRoomRef.set({
                     createdAt: firebase.database.ServerValue.TIMESTAMP,
-                    host: { id: localPlayerId, choice: null },
+                    host: { id: localPlayerId, name: localPlayerName, choice: null },
                     guest: { id: opponentId, choice: null }
                 }).then(() => {
                     db.ref(`matchmaking/invitations/${opponentId}`).set({ roomId: newRoomId });
@@ -541,9 +582,135 @@ function cleanupMatchmaking() {
 
 function endMatchmaking() {
     matchmakingActive = false;
-    matchmakingButton.disabled = false;
     cancelMatchButton.disabled = true;
-    createRoomButton.disabled = false;
-    joinRoomButton.disabled = false;
     matchStatus.className = 'room-status';
+    updateActionAvailability();
+}
+
+function registerPlayerName() {
+    if (!db) {
+        return;
+    }
+
+    const nextName = playerNameInput.value.trim();
+    if (!nextName) {
+        profileStatus.textContent = 'ユーザー名を入力してください。';
+        return;
+    }
+
+    if (nextName.length > 16) {
+        profileStatus.textContent = 'ユーザー名は16文字以内で入力してください。';
+        return;
+    }
+
+    localPlayerName = nextName;
+    localStorage.setItem('jankenPlayerName', nextName);
+
+    syncLocalProfile().then(() => {
+        profileStatus.textContent = `ユーザー登録完了: ${nextName}`;
+        updateActionAvailability();
+    }).catch((error) => {
+        profileStatus.textContent = `登録に失敗しました: ${formatDbError(error)}`;
+    });
+}
+
+function syncLocalProfile() {
+    if (!db || !localPlayerName) {
+        return Promise.resolve();
+    }
+
+    const profileRef = db.ref(`players/${localPlayerId}`);
+    return profileRef.transaction((current) => ({
+        displayName: localPlayerName,
+        points: current && typeof current.points === 'number' ? current.points : 0,
+        wins: current && typeof current.wins === 'number' ? current.wins : 0,
+        draws: current && typeof current.draws === 'number' ? current.draws : 0,
+        losses: current && typeof current.losses === 'number' ? current.losses : 0,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    }));
+}
+
+function attachLocalProfileListener() {
+    if (!db || profileListenerAttached) {
+        return;
+    }
+
+    db.ref(`players/${localPlayerId}`).on('value', (snapshot) => {
+        const profile = snapshot.val();
+        const points = profile && typeof profile.points === 'number' ? profile.points : 0;
+        pointStatus.textContent = `現在ポイント: ${points}`;
+
+        if (profile && profile.displayName) {
+            localPlayerName = profile.displayName;
+            playerNameInput.value = profile.displayName;
+            if (!profileStatus.textContent.startsWith('登録に失敗')) {
+                profileStatus.textContent = `ユーザー: ${profile.displayName}`;
+            }
+            updateActionAvailability();
+        }
+    });
+
+    profileListenerAttached = true;
+}
+
+function updateActionAvailability() {
+    const canPlay = isRegistered();
+    createRoomButton.disabled = !canPlay || matchmakingActive;
+    joinRoomButton.disabled = !canPlay || matchmakingActive;
+    matchmakingButton.disabled = !canPlay || matchmakingActive;
+}
+
+function isRegistered() {
+    return Boolean(localPlayerName && localPlayerName.trim());
+}
+
+function getSavedPlayerName() {
+    return localStorage.getItem('jankenPlayerName') || '';
+}
+
+function applyRoundPoints(room) {
+    if (!db || !room || !room.host || !room.guest) {
+        return;
+    }
+
+    const hostChoice = room.host.choice;
+    const guestChoice = room.guest.choice;
+    if (!hostChoice || !guestChoice || !room.host.id || !room.guest.id) {
+        return;
+    }
+
+    const hostResult = judge(hostChoice, guestChoice);
+    if (hostResult === 'draw') {
+        addPoints(room.host.id, 1, 'draw');
+        addPoints(room.guest.id, 1, 'draw');
+        return;
+    }
+
+    if (hostResult === 'win') {
+        addPoints(room.host.id, 3, 'win');
+        addPoints(room.guest.id, 0, 'lose');
+        return;
+    }
+
+    addPoints(room.host.id, 0, 'lose');
+    addPoints(room.guest.id, 3, 'win');
+}
+
+function addPoints(playerId, deltaPoints, resultType) {
+    db.ref(`players/${playerId}`).transaction((current) => {
+        const currentSafe = current || {};
+        const nextPoints = (typeof currentSafe.points === 'number' ? currentSafe.points : 0) + deltaPoints;
+        const nextWins = (typeof currentSafe.wins === 'number' ? currentSafe.wins : 0) + (resultType === 'win' ? 1 : 0);
+        const nextDraws = (typeof currentSafe.draws === 'number' ? currentSafe.draws : 0) + (resultType === 'draw' ? 1 : 0);
+        const nextLosses = (typeof currentSafe.losses === 'number' ? currentSafe.losses : 0) + (resultType === 'lose' ? 1 : 0);
+
+        return {
+            displayName: currentSafe.displayName || 'プレイヤー',
+            points: nextPoints,
+            wins: nextWins,
+            draws: nextDraws,
+            losses: nextLosses,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        };
+    });
 }
