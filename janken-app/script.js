@@ -143,6 +143,16 @@ function playJanken(playerChoice) {
             return;
         }
 
+        const resolvedRole = resolveRoleFromRoom(room);
+        if (resolvedRole) {
+            role = resolvedRole;
+        }
+
+        if (!role || !room[role] || room[role].id !== currentPlayerId) {
+            setResult('プレイヤー情報の同期に失敗しました。ルームを再参加してください。', 'lose');
+            return;
+        }
+
         const me = room[role];
         const opponentRole = role === 'host' ? 'guest' : 'host';
         const opponent = room[opponentRole];
@@ -287,6 +297,18 @@ function onRoomChange(snapshot) {
         roomStatus.textContent = 'ルームが終了しました。';
         resultText.textContent = '新しいルームを作成または参加してください。';
         resetArena();
+        return;
+    }
+
+    const resolvedRole = resolveRoleFromRoom(room);
+    if (resolvedRole && resolvedRole !== role) {
+        role = resolvedRole;
+    }
+
+    if (!role || !room[role]) {
+        setButtonsDisabled(true);
+        roomStatus.textContent = 'ルーム情報の同期中です...';
+        setResult('プレイヤー情報を同期しています。少し待ってください。', 'draw');
         return;
     }
 
@@ -980,4 +1002,20 @@ function addPoints(playerId, deltaPoints, resultType) {
             updatedAt: firebase.database.ServerValue.TIMESTAMP
         };
     });
+}
+
+function resolveRoleFromRoom(room) {
+    if (!room || !currentPlayerId) {
+        return '';
+    }
+
+    if (room.host && room.host.id === currentPlayerId) {
+        return 'host';
+    }
+
+    if (room.guest && room.guest.id === currentPlayerId) {
+        return 'guest';
+    }
+
+    return '';
 }
