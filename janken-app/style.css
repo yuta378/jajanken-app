@@ -138,6 +138,15 @@ h1 {
     color: #2b5ea8;
 }
 
+.delete-user-btn {
+    margin-top: 8px;
+    background: linear-gradient(135deg, #d64545, #c82828);
+}
+
+.delete-user-btn:hover {
+    opacity: 0.85;
+}
+
 .panel-divider {
     border: none;
     border-top: 1px solid rgba(159, 185, 230, 0.45);
