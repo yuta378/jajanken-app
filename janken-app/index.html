@@ -9,9 +9,20 @@
 <body>
 	<div class="background-glow"></div>
 	<div class="stage-light"></div>
-	<h1>じゃんけんバトル</h1>
-	<p class="subtitle">テレビエンディング風 3D じゃんけんショー</p>
-	<div id="app">
+
+	<!-- Home Screen -->
+	<div id="homeScreen" class="home-screen">
+		<div class="home-container">
+			<h1 class="home-title">じゃんけん</h1>
+			<button id="gameStartBtn" class="game-start-btn">ゲームスタート</button>
+		</div>
+	</div>
+
+	<!-- Game Screen -->
+	<div id="gameScreen" class="game-screen" style="display: none;">
+		<h1>じゃんけんバトル</h1>
+		<p class="subtitle">テレビエンディング風 3D じゃんけんショー</p>
+		<div id="app">
 		<div class="online-panel" aria-label="オンライン対戦設定">
 			<div class="panel-title">オンライン対戦 (無料: Firebase)</div>
 			<div class="register-controls">
@@ -80,7 +91,9 @@
 			<button id="paper" class="choice-btn paper-btn" aria-label="パー">🖐️ パー</button>
 		</div>
 		<p id="result" aria-live="polite">ルームを作成/参加してバトル開始！</p>
+		</div>
 	</div>
+
 	<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 	<script src="script.js"></script>
