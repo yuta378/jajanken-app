@@ -12,9 +12,26 @@
 	<h1>じゃんけんバトル</h1>
 	<p class="subtitle">テレビエンディング風 3D じゃんけんショー</p>
 	<div id="app">
+		<div class="online-panel" aria-label="オンライン対戦設定">
+			<div class="panel-title">オンライン対戦 (無料: Firebase)</div>
+			<div class="room-controls">
+				<input id="roomIdInput" type="number" min="1" max="9" maxlength="1" placeholder="ルームID (1〜9)" aria-label="ルームID">
+				<button id="createRoomBtn" class="room-btn">ルーム作成</button>
+				<button id="joinRoomBtn" class="room-btn">参加</button>
+				<button id="leaveRoomBtn" class="room-btn leave-btn" disabled>退出</button>
+			</div>
+			<p id="roomStatus" class="room-status" aria-live="polite">ルームを作成または参加してください。</p>
+			<hr class="panel-divider">
+			<div class="matchmaking-controls">
+				<button id="matchmakingBtn" class="room-btn match-btn">🎮 マッチング</button>
+				<button id="cancelMatchBtn" class="room-btn cancel-btn" disabled>キャンセル</button>
+			</div>
+			<p id="matchStatus" class="room-status" aria-live="polite"></p>
+			<p id="debugStatus" class="room-status" style="font-size:0.8em;color:#888"></p>
+		</div>
 		<div class="arena">
 			<div class="hand-card" id="playerHand">
-				<div class="card-label">あなた</div>
+				<div class="card-label" id="playerLabel">あなた</div>
 				<div class="fighter player" aria-hidden="true">
 					<span class="head"></span>
 					<span class="body"></span>
@@ -25,7 +42,7 @@
 			</div>
 			<div class="vs">VS</div>
 			<div class="hand-card" id="computerHand">
-				<div class="card-label">コンピュータ</div>
+				<div class="card-label" id="opponentLabel">対戦相手</div>
 				<div class="fighter computer" aria-hidden="true">
 					<span class="head"></span>
 					<span class="body"></span>
@@ -40,8 +57,10 @@
 			<button id="scissors" class="choice-btn scissors-btn" aria-label="チョキ">✌️ チョキ</button>
 			<button id="paper" class="choice-btn paper-btn" aria-label="パー">🖐️ パー</button>
 		</div>
-		<p id="result" aria-live="polite">手を選んでバトル開始！</p>
+		<p id="result" aria-live="polite">ルームを作成/参加してバトル開始！</p>
 	</div>
+	<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 	<script src="script.js"></script>
 </body>
 </html>
