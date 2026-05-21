@@ -39,6 +39,17 @@
 				<button id="cancelMatchBtn" class="room-btn cancel-btn" disabled>キャンセル</button>
 			</div>
 			<p id="matchStatus" class="room-status" aria-live="polite"></p>
+			<hr class="panel-divider">
+			<button id="rankingBtn" class="room-btn ranking-btn">🏆 ランキング</button>
+		</div>
+		<div id="rankingModal" class="ranking-modal" style="display: none;">
+			<div class="ranking-content">
+				<div class="ranking-header">
+					<h2>ランキング</h2>
+					<button id="closeRankingBtn" class="close-ranking-btn">✕</button>
+				</div>
+				<div id="rankingList" class="ranking-list"></div>
+			</div>
 		</div>
 		<div class="arena">
 			<div class="hand-card" id="playerHand">
