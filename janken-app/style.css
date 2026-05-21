@@ -69,6 +69,25 @@ h1 {
     color: #1c355f;
 }
 
+.login-controls {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+#loginUserSelect {
+    width: min(320px, 80vw);
+    padding: 9px 11px;
+    border-radius: 10px;
+    border: 1px solid #9cb8e6;
+    background: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #1c355f;
+}
+
 .room-controls {
     margin-top: 8px;
     display: flex;
@@ -439,6 +458,11 @@ h1 {
         align-items: stretch;
     }
 
+    .login-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
     .room-controls {
         flex-direction: column;
         align-items: stretch;
@@ -454,6 +478,10 @@ h1 {
     }
 
     #playerNameInput {
+        width: 100%;
+    }
+
+    #loginUserSelect {
         width: 100%;
     }
 
